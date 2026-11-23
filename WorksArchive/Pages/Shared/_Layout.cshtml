@@ -1,0 +1,168 @@
+@inject SettingsService Settings
+@{
+    var (defAccent, defMode) = await Settings.DefaultThemeAsync();
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var isTeacher = isAdmin || User.IsInRole(nameof(UserRole.Teacher));
+    var path = Context.Request.Path.Value ?? "";
+    string Active(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="uk" data-accent="@defAccent.Key" data-bs-theme="@(defMode == "dark" ? "dark" : "light")"
+      data-default-accent="@defAccent.Key" data-default-mode="@defMode">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+        // Застосовуємо тему до відмальовування сторінки (без "блимання").
+        (function () {
+            var d = document.documentElement, media = matchMedia('(prefers-color-scheme: dark)');
+            function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+            var mode = get('wa-mode') || d.dataset.defaultMode, accent = get('wa-accent') || d.dataset.defaultAccent;
+            window.waTheme = {
+                get mode() { return mode; }, get accent() { return accent; },
+                apply: function (m, a) {
+                    if (m) mode = m; if (a) accent = a;
+                    var dark = mode === 'dark' || (mode === 'auto' && media.matches);
+                    d.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+                    d.setAttribute('data-accent', accent);
+                }
+            };
+            waTheme.apply();
+            media.addEventListener('change', function () { if (mode === 'auto') waTheme.apply(); });
+        })();
+    </script>
+    <style>
+        @foreach (var a in Themes.Accents)
+        {
+            @:html[data-accent="@a.Key"] { --accent: @a.Color; --accent-rgb: @a.Rgb; --accent-hover: @a.Hover; }
+        }
+    </style>
+    <title>@ViewData["Title"] — Архів робіт</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href="/"><i class="bi bi-archive"></i> Архів робіт</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link @Active("/Upload")" href="/Upload"><i class="bi bi-cloud-upload"></i> Здати роботу</a></li>
+                @if (isTeacher)
+                {
+                    <li class="nav-item"><a class="nav-link @Active("/Works")" href="/Works"><i class="bi bi-folder2-open"></i> Роботи</a></li>
+                }
+                @if (isAdmin)
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle @Active("/Admin")" href="#" data-bs-toggle="dropdown"><i class="bi bi-gear"></i> Адмін-панель</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/Admin"><i class="bi bi-speedometer2"></i> Огляд</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Users"><i class="bi bi-people"></i> Користувачі</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Groups"><i class="bi bi-collection"></i> Групи</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Storage"><i class="bi bi-hdd-stack"></i> Сховище</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Settings"><i class="bi bi-sliders"></i> Налаштування</a></li>
+                        </ul>
+                    </li>
+                }
+            </ul>
+            <ul class="navbar-nav">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Тема оформлення">
+                        <i class="bi bi-palette"></i> <span class="d-lg-none">Тема</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end p-3 theme-menu">
+                        <div class="small text-body-secondary mb-2">Режим</div>
+                        <div class="btn-group w-100 mb-3" role="group">
+                            @foreach (var m in Themes.Modes)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary mode-btn" data-mode="@m.Key" title="@m.Name">
+                                    <i class="bi @m.Icon"></i> @m.ShortName
+                                </button>
+                            }
+                        </div>
+                        <div class="small text-body-secondary mb-2">Колір</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var a in Themes.Accents)
+                            {
+                                <button type="button" class="swatch" data-accent="@a.Key" style="--sw:@a.Color" title="@a.Name" aria-label="@a.Name"></button>
+                            }
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm p-0 mt-3 text-decoration-none" id="themeReset">
+                            <i class="bi bi-arrow-counterclockwise"></i> Стандартна тема
+                        </button>
+                    </div>
+                </li>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> @User.Identity.Name</a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/Account/ChangePassword"><i class="bi bi-key"></i> Змінити пароль</a></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
+                                <form method="post" action="/Account/Logout" class="px-3">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-link p-0 text-danger text-decoration-none"><i class="bi bi-box-arrow-right"></i> Вийти</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Login"><i class="bi bi-box-arrow-in-right"></i> Вхід для викладачів</a></li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+    @if (TempData["Success"] is string ok)
+    {
+        <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle"></i> @ok
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle"></i> @err
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @RenderBody()
+</main>
+
+<footer class="text-center text-muted small py-3 border-top">
+    Архів курсових і дипломних робіт · @DateTime.Now.Year
+</footer>
+
+<script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Вибір теми: зберігається в браузері (localStorage) кожного користувача.
+    (function () {
+        function set(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } }
+        function mark() {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === waTheme.mode); });
+            document.querySelectorAll('.swatch').forEach(function (b) { b.classList.toggle('active', b.dataset.accent === waTheme.accent); });
+        }
+        document.querySelectorAll('.mode-btn').forEach(function (b) {
+            b.addEventListener('click', function () { set('wa-mode', b.dataset.mode); waTheme.apply(b.dataset.mode); mark(); });
+        });
+        document.querySelectorAll('.swatch').forEach(function (b) {
+            b.addEventListener('click', function () { set('wa-accent', b.dataset.accent); waTheme.apply(null, b.dataset.accent); mark(); });
+        });
+        document.getElementById('themeReset').addEventListener('click', function () {
+            var d = document.documentElement.dataset;
+            set('wa-mode', null); set('wa-accent', null);
+            waTheme.apply(d.defaultMode, d.defaultAccent); mark();
+        });
+        mark();
+    })();
+</script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

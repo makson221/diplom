@@ -1,0 +1,128 @@
+@page
+@model WorksArchive.Pages.Admin.StorageModel
+@{
+    ViewData["Title"] = "Сховище";
+    var driveWorks = Model.Providers.FirstOrDefault(p => p.Name == StorageResolver.GoogleDrive)?.Count ?? 0;
+}
+<h3 class="mb-4"><i class="bi bi-hdd-stack text-primary"></i> Сховище файлів</h3>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card p-4 mb-3">
+            <h5 class="mb-3">Заповненість активного сховища</h5>
+            <partial name="_StorageUsage" model="Model.Usage" />
+            <dl class="row small mt-3 mb-0">
+                <dt class="col-5">Робіт у цьому сховищі</dt><dd class="col-7">@Model.Usage.WorkCount.ToString("N0")</dd>
+                <dt class="col-5">Середній розмір роботи</dt><dd class="col-7">@WorkService.FormatSize(Model.Usage.AverageWorkBytes)</dd>
+                <dt class="col-5">База даних</dt><dd class="col-7">@Model.DbProvider</dd>
+                <dt class="col-5">Макс. розмір файлу</dt><dd class="col-7">@Model.MaxMb МБ</dd>
+            </dl>
+        </div>
+
+        <div class="card p-4 mb-3">
+            <h5>Куди зберігати нові роботи</h5>
+            <p class="small text-body-secondary">Уже завантажені роботи залишаються там, де були, і їх так само можна скачати.</p>
+            <form method="post" asp-page-handler="Active">
+                @foreach (var p in Model.Providers)
+                {
+                    var disabled = !p.Available || (p.Name == StorageResolver.GoogleDrive && !Model.DriveConnected);
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="provider" id="p-@p.Name" value="@p.Name"
+                               checked="@(p.Name == Model.Active)" disabled="@disabled" />
+                        <label class="form-check-label" for="p-@p.Name">
+                            <b>@p.Title</b>
+                            @if (p.Name == StorageResolver.Local) { <span class="small text-body-secondary">— папка на хостингу (обсяг залежить від тарифу)</span> }
+                            @if (p.Name == StorageResolver.GoogleDrive) { <span class="small text-body-secondary">— 15 ГБ безкоштовно @(Model.DriveConnected ? "" : "(спершу підключіть нижче)")</span> }
+                            <span class="badge text-bg-secondary ms-1">@p.Count.ToString("N0") робіт · @WorkService.FormatSize(p.Bytes)</span>
+                        </label>
+                    </div>
+                }
+                <button class="btn btn-primary mt-2"><i class="bi bi-check-lg"></i> Зберегти вибір</button>
+            </form>
+
+            @if (Model.Active != StorageResolver.GoogleDrive)
+            {
+                <hr />
+                <form method="post" asp-page-handler="Quota" class="row g-2 align-items-end">
+                    <div class="col-sm-6">
+                        <label class="form-label small mb-1" for="quota">Обсяг сховища «@StorageResolver.Title(Model.Active)», ГБ</label>
+                        <input class="form-control" id="quota" name="quotaGb" value="@Model.QuotaGb.ToString(System.Globalization.CultureInfo.InvariantCulture)" />
+                    </div>
+                    <div class="col-sm-6"><button class="btn btn-outline-primary">Зберегти</button></div>
+                    <div class="form-text">Для індикатора заповненості. Безкоштовний MonsterASP.NET дає 5 ГБ на весь сайт.</div>
+                </form>
+            }
+        </div>
+
+        <div class="card p-4">
+            <h5><i class="bi bi-google"></i> Google Drive (15 ГБ безкоштовно)</h5>
+            @if (Model.DriveConnected)
+            {
+                <p class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Підключено акаунт <b>@Model.DriveAccount</b></p>
+                <p class="small text-body-secondary">Роботи зберігаються в папці «Архів робіт» на цьому Google Drive, розкладені за роками, групами і типом.</p>
+                <div class="d-flex gap-2 flex-wrap">
+                    <a asp-page-handler="Connect" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Підключити ще раз</a>
+                    <form method="post" asp-page-handler="Disconnect"
+                          onsubmit="return confirm('Відключити Google Drive? @(driveWorks > 0 ? $"{driveWorks} робіт на Drive стануть недоступні для скачування, доки не підключите ТОЙ САМИЙ акаунт знову." : "")');">
+                        <button class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Відключити</button>
+                    </form>
+                </div>
+            }
+            else
+            {
+                <ol class="small ps-3">
+                    <li>Створіть окремий Gmail для архіву.</li>
+                    <li>У <a href="https://console.cloud.google.com" target="_blank" rel="noopener">Google Cloud Console</a>: увімкніть <b>Google Drive API</b>, налаштуйте екран згоди (External, <b>Publish app</b>) і створіть OAuth-клієнт типу <b>Web application</b>.</li>
+                    <li>В «Authorized redirect URIs» вставте: <code class="user-select-all">@Model.RedirectUri</code></li>
+                    <li>Вставте Client ID і Client Secret нижче, збережіть і натисніть «Підключити Google Drive».</li>
+                </ol>
+            }
+
+            <form method="post" asp-page-handler="DriveClient" class="mt-3">
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1" for="cid">Client ID</label>
+                        <input class="form-control form-control-sm" id="cid" name="clientId" value="@Model.DriveClientId" autocomplete="off" />
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small mb-1" for="csec">Client Secret</label>
+                        <input class="form-control form-control-sm" id="csec" name="clientSecret" type="password" autocomplete="new-password"
+                               placeholder="@(Model.DriveConfigured ? "•••••• (збережено)" : "")" />
+                    </div>
+                </div>
+                <div class="d-flex gap-2 mt-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-secondary"><i class="bi bi-save"></i> Зберегти ключі</button>
+                    @if (Model.DriveConfigured && !Model.DriveConnected)
+                    {
+                        <a asp-page-handler="Connect" class="btn btn-sm btn-primary"><i class="bi bi-google"></i> Підключити Google Drive</a>
+                    }
+                </div>
+            </form>
+            @if (Model.DriveConnected)
+            {
+                <div class="small text-body-secondary mt-2">Redirect URI: <code class="user-select-all">@Model.RedirectUri</code></div>
+            }
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <h5>Безкоштовні варіанти</h5>
+            <table class="table table-sm small mb-2">
+                <thead><tr><th>Сховище</th><th>Безкоштовно</th></tr></thead>
+                <tbody>
+                    <tr><td>Диск MonsterASP.NET</td><td>5 ГБ (на весь сайт)</td></tr>
+                    <tr><td>Google Drive</td><td>15 ГБ</td></tr>
+                    <tr><td>Oracle Cloud (S3)</td><td>20 ГБ*</td></tr>
+                    <tr><td>Backblaze B2 (S3)</td><td>10 ГБ</td></tr>
+                </tbody>
+            </table>
+            <div class="small text-body-secondary">* потрібна банківська картка. S3-сховища підключаються через файл налаштувань (див. README).</div>
+            <hr />
+            <div class="small text-body-secondary">
+                <b>Порада:</b> почніть із диска сервера. Коли він заповниться на 80–90 %, підключіть Google Drive
+                і перемкніть на нього нові роботи — старі залишаться доступними.
+            </div>
+        </div>
+    </div>
+</div>

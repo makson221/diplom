@@ -1,0 +1,39 @@
+@model WorkInput
+@{
+    var groups = (IEnumerable<StudyGroup>)ViewData["Groups"]!;
+}
+<div class="row g-3">
+    <div class="col-md-6">
+        <label asp-for="GroupId" class="form-label"></label>
+        <select asp-for="GroupId" class="form-select">
+            <option value="0">— оберіть групу —</option>
+            @foreach (var g in groups)
+            {
+                <option value="@g.Id" selected="@(g.Id == Model.GroupId)">@g.Name</option>
+            }
+        </select>
+        <span asp-validation-for="GroupId" class="text-danger small"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Year" class="form-label"></label>
+        <input asp-for="Year" type="number" min="2000" max="2100" class="form-control" />
+        <span asp-validation-for="Year" class="text-danger small"></span>
+    </div>
+    <div class="col-md-3">
+        <label asp-for="Type" class="form-label"></label>
+        <select asp-for="Type" class="form-select">
+            <option value="@WorkType.Coursework">@WorkType.Coursework.ToUa()</option>
+            <option value="@WorkType.Diploma">@WorkType.Diploma.ToUa()</option>
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="StudentName" class="form-label"></label>
+        <input asp-for="StudentName" class="form-control" placeholder="Прізвище Ім'я По батькові" />
+        <span asp-validation-for="StudentName" class="text-danger small"></span>
+    </div>
+    <div class="col-md-6">
+        <label asp-for="Title" class="form-label"></label>
+        <input asp-for="Title" class="form-control" />
+        <span asp-validation-for="Title" class="text-danger small"></span>
+    </div>
+</div>

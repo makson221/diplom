@@ -1,0 +1,42 @@
+@page
+@model WorksArchive.Pages.Works.UploadModel
+@{
+    ViewData["Title"] = "Додати роботу";
+}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card p-4">
+            <h3 class="mb-3"><i class="bi bi-plus-circle text-success"></i> Додати роботу</h3>
+            @if (!Model.Groups.Any())
+            {
+                <div class="alert alert-info mb-0">Спочатку адміністратор має додати групи.</div>
+            }
+            else
+            {
+                <form method="post" enctype="multipart/form-data">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                    <partial name="_WorkFields" for="Input" view-data="@(new ViewDataDictionary(ViewData) { ["Groups"] = Model.Groups })" />
+                    <div class="mt-3">
+                        <label class="form-label" for="WorkFile">Файл роботи</label>
+                        <input type="file" name="WorkFile" id="WorkFile" class="form-control" accept="@Model.Accept" required />
+                        <div class="form-text">До @Model.MaxMb МБ.</div>
+                        <span asp-validation-for="WorkFile" class="text-danger small"></span>
+                    </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button class="btn btn-success" id="submitBtn"><i class="bi bi-cloud-upload"></i> Завантажити</button>
+                        <a href="/Works" class="btn btn-outline-secondary">Скасувати</a>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+@section Scripts {
+    <script>
+        document.querySelector('form')?.addEventListener('submit', () => {
+            const b = document.getElementById('submitBtn');
+            b.disabled = true;
+            b.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Завантаження...';
+        });
+    </script>
+}
