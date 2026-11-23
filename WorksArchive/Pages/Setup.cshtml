@@ -1,0 +1,40 @@
+@page
+@model WorksArchive.Pages.SetupModel
+@{
+    ViewData["Title"] = "Перший запуск";
+}
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-5">
+        <div class="card p-4 mt-3">
+            <div class="text-center mb-3">
+                <i class="bi bi-stars display-5 text-primary"></i>
+                <h3 class="mt-2">Вітаємо! Сайт працює</h3>
+                <p class="text-body-secondary mb-0">Створіть обліковий запис адміністратора. Це потрібно зробити лише один раз.</p>
+            </div>
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                <div class="mb-3">
+                    <label asp-for="FullName" class="form-label"></label>
+                    <input asp-for="FullName" class="form-control" autofocus />
+                    <span asp-validation-for="FullName" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="LoginName" class="form-label"></label>
+                    <input asp-for="LoginName" class="form-control" autocomplete="username" />
+                    <span asp-validation-for="LoginName" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="ConfirmPassword" class="form-label"></label>
+                    <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+                    <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
+                </div>
+                <button class="btn btn-primary w-100"><i class="bi bi-person-check"></i> Створити адміністратора</button>
+            </form>
+        </div>
+    </div>
+</div>

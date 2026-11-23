@@ -38,6 +38,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.Title).HasMaxLength(300).IsRequired();
             e.Property(x => x.OriginalFileName).HasMaxLength(255).IsRequired();
             e.Property(x => x.StoragePath).HasMaxLength(300).IsRequired();
+            e.Property(x => x.StorageProvider).HasMaxLength(20).IsRequired();
+            e.Property(x => x.SearchText).HasMaxLength(460);
             e.Property(x => x.ContentType).HasMaxLength(150);
             e.Property(x => x.UploadedBy).HasMaxLength(150);
             e.HasIndex(x => new { x.GroupId, x.Year });

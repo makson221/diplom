@@ -31,13 +31,16 @@ public interface IFileStorage
 
 public class StorageOptions
 {
-    /// <summary>"GoogleDrive", "S3", "Supabase" або "Local".</summary>
-    public string Provider { get; set; } = "GoogleDrive";
+    /// <summary>Сховище за замовчуванням: "Local", "GoogleDrive", "S3" або "Supabase". Адміністратор може змінити його в панелі.</summary>
+    public string Provider { get; set; } = "Local";
 
-    /// <summary>Обсяг сховища в ГБ для індикатора заповненості (для S3/Supabase/Local, які квоту не повідомляють).</summary>
-    public double QuotaGb { get; set; } = 10;
+    /// <summary>Обсяг сховища в ГБ для індикатора заповненості (для Local/S3/Supabase, які квоту не повідомляють). Змінюється і в панелі.</summary>
+    public double QuotaGb { get; set; } = 5;
 
     public string LocalPath { get; set; } = "App_Data/files";
+
+    /// <summary>false — заборонити диск сервера (для хостингів із тимчасовим диском, як-от Render).</summary>
+    public bool AllowLocal { get; set; } = true;
     public SupabaseOptions Supabase { get; set; } = new();
     public S3Options S3 { get; set; } = new();
     public GoogleDriveOptions GoogleDrive { get; set; } = new();
@@ -66,7 +69,7 @@ public class S3Options
 
 public class GoogleDriveOptions
 {
-    /// <summary>OAuth Client ID з Google Cloud Console (тип "Web application").</summary>
+    /// <summary>OAuth Client ID з Google Cloud Console (тип "Web application"). Можна вказати і в адмін-панелі.</summary>
     public string ClientId { get; set; } = "";
     public string ClientSecret { get; set; } = "";
     /// <summary>Назва кореневої папки на Google Drive.</summary>

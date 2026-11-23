@@ -83,7 +83,15 @@ public class Work
     public int Year { get; set; }
 
     public string OriginalFileName { get; set; } = "";
+
+    /// <summary>У якому сховищі лежить файл: Local, GoogleDrive, S3, Supabase.</summary>
+    public string StorageProvider { get; set; } = "Local";
+
+    /// <summary>Ключ файлу в сховищі (шлях або id файлу на Google Drive).</summary>
     public string StoragePath { get; set; } = "";
+
+    /// <summary>ПІБ + тема в нижньому регістрі — для пошуку без урахування регістру (SQLite не вміє lower() для кирилиці).</summary>
+    public string SearchText { get; set; } = "";
     public string ContentType { get; set; } = "application/octet-stream";
     public long SizeBytes { get; set; }
 

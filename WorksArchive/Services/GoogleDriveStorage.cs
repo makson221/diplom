@@ -20,6 +20,8 @@ public class GoogleDriveStorage : IFileStorage
     public const string Scope = "https://www.googleapis.com/auth/drive.file";
     public const string RefreshTokenKey = "GoogleDrive.RefreshToken";
     public const string AccountKey = "GoogleDrive.Account";
+    public const string ClientIdKey = "GoogleDrive.ClientId";
+    public const string ClientSecretKey = "GoogleDrive.ClientSecret";
     private const string FolderMime = "application/vnd.google-apps.folder";
     private const string TokenCacheKey = "gd-access-token";
 
@@ -28,6 +30,7 @@ public class GoogleDriveStorage : IFileStorage
     private readonly SettingsService _settings;
     private readonly IMemoryCache _cache;
     private readonly IDataProtector _protector;
+    private readonly IDataProtector _secretProtector;
     private readonly ILogger<GoogleDriveStorage> _log;
 
     public GoogleDriveStorage(HttpClient http, IOptions<StorageOptions> options, SettingsService settings,
@@ -39,33 +42,65 @@ public class GoogleDriveStorage : IFileStorage
         _settings = settings;
         _cache = cache;
         _protector = dataProtection.CreateProtector("GoogleDrive.RefreshToken");
+        _secretProtector = dataProtection.CreateProtector("GoogleDrive.ClientSecret");
         _log = log;
     }
 
     public string DisplayName => "Google Drive";
 
-    /// <summary>Чи задано ClientId/ClientSecret у конфігурації.</summary>
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_o.ClientId) && !string.IsNullOrWhiteSpace(_o.ClientSecret);
+    /// <summary>OAuth-клієнт: спочатку з адмін-панелі (БД), інакше з конфігурації.</summary>
+    public async Task<(string Id, string Secret)> ClientAsync()
+    {
+        var id = await _settings.GetAsync(ClientIdKey);
+        var secret = await _settings.GetAsync(ClientSecretKey);
+        if (!string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(secret))
+        {
+            try { return (id, _secretProtector.Unprotect(secret)); }
+            catch (Exception ex) { _log.LogWarning("Не вдалося розшифрувати ClientSecret: {Message}", ex.Message); }
+        }
+        return (_o.ClientId, _o.ClientSecret);
+    }
+
+    public async Task<bool> IsConfiguredAsync()
+    {
+        var (id, secret) = await ClientAsync();
+        return !string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(secret);
+    }
+
+    /// <summary>Зберігає OAuth-клієнт, введений в адмін-панелі (секрет — зашифровано).</summary>
+    public async Task SaveClientAsync(string clientId, string? clientSecret)
+    {
+        await _settings.SetAsync(ClientIdKey, clientId.Trim());
+        if (!string.IsNullOrWhiteSpace(clientSecret))
+            await _settings.SetAsync(ClientSecretKey, _secretProtector.Protect(clientSecret.Trim()));
+        _cache.Remove(TokenCacheKey);
+    }
+
+    public async Task<string?> SavedClientIdAsync() => (await ClientAsync()).Id;
 
     public async Task<bool> IsConnectedAsync() => !string.IsNullOrEmpty(await _settings.GetAsync(RefreshTokenKey));
     public Task<string?> ConnectedAccountAsync() => _settings.GetAsync(AccountKey);
 
     // ---------------- Підключення (OAuth 2.0) ----------------
 
-    public string BuildAuthorizeUrl(string redirectUri, string state) =>
-        $"{_o.AuthUrl}?client_id={E(_o.ClientId)}&redirect_uri={E(redirectUri)}&response_type=code" +
-        $"&scope={E(Scope)}&access_type=offline&prompt=consent&include_granted_scopes=true&state={E(state)}";
+    public async Task<string> BuildAuthorizeUrlAsync(string redirectUri, string state)
+    {
+        var (clientId, _) = await ClientAsync();
+        return $"{_o.AuthUrl}?client_id={E(clientId)}&redirect_uri={E(redirectUri)}&response_type=code" +
+               $"&scope={E(Scope)}&access_type=offline&prompt=consent&include_granted_scopes=true&state={E(state)}";
+    }
 
     /// <summary>Обмінює код авторизації на refresh-токен і зберігає його.</summary>
     public async Task ConnectAsync(string code, string redirectUri, CancellationToken ct = default)
     {
+        var (clientId, clientSecret) = await ClientAsync();
         var token = await RequestTokenAsync(new Dictionary<string, string>
         {
             ["grant_type"] = "authorization_code",
             ["code"] = code,
             ["redirect_uri"] = redirectUri,
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret
         }, ct);
 
         if (string.IsNullOrEmpty(token.RefreshToken))
@@ -125,12 +160,13 @@ public class GoogleDriveStorage : IFileStorage
         if (string.IsNullOrEmpty(protectedToken))
             throw new StorageException("Google Drive не підключено. Адміністратор має підключити його: Адмін-панель → Сховище.");
 
+        var (clientId, clientSecret) = await ClientAsync();
         var token = await RequestTokenAsync(new Dictionary<string, string>
         {
             ["grant_type"] = "refresh_token",
             ["refresh_token"] = _protector.Unprotect(protectedToken),
-            ["client_id"] = _o.ClientId,
-            ["client_secret"] = _o.ClientSecret
+            ["client_id"] = clientId,
+            ["client_secret"] = clientSecret
         }, ct);
         _cache.Set(TokenCacheKey, token.AccessToken, TimeSpan.FromSeconds(Math.Max(60, token.ExpiresIn - 120)));
         return token.AccessToken;
@@ -190,9 +226,9 @@ public class GoogleDriveStorage : IFileStorage
 
     public async Task EnsureReadyAsync(CancellationToken ct = default)
     {
-        if (!IsConfigured)
+        if (!await IsConfiguredAsync())
         {
-            _log.LogWarning("Google Drive: не задано Storage:GoogleDrive:ClientId / ClientSecret");
+            _log.LogWarning("Google Drive: не задано Client ID / Client Secret (Адмін-панель → Сховище)");
             return;
         }
         if (!await IsConnectedAsync())
@@ -270,7 +306,7 @@ public class GoogleDriveStorage : IFileStorage
 
     public async Task<StorageQuota?> GetQuotaAsync(CancellationToken ct = default)
     {
-        if (!IsConfigured || !await IsConnectedAsync()) return null;
+        if (!await IsConfiguredAsync() || !await IsConnectedAsync()) return null;
         try
         {
             using var resp = await SendAsync(() => new HttpRequestMessage(HttpMethod.Get, _o.ApiUrl + "about?fields=storageQuota"), ct);

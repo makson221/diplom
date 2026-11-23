@@ -5,7 +5,7 @@ namespace WorksArchive.Services;
 /// <summary>Локальне сховище у папці — для розробки та тестування без інтернету.</summary>
 public class LocalFileStorage(IOptions<StorageOptions> options, IWebHostEnvironment env) : IFileStorage
 {
-    public string DisplayName => "Локальна папка";
+    public string DisplayName => "Диск сервера";
 
     private readonly string _root = Path.GetFullPath(Path.Combine(env.ContentRootPath, options.Value.LocalPath));
 

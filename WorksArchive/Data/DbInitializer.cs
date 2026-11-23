@@ -4,9 +4,15 @@ using WorksArchive.Services;
 
 namespace WorksArchive.Data;
 
+/// <summary>Чи потрібно ще створити першого адміністратора.</summary>
+public class SetupState
+{
+    public volatile bool NeedsSetup;
+}
+
 public static class DbInitializer
 {
-    /// <summary>Створює таблиці (якщо їх ще немає) і першого адміністратора.</summary>
+    /// <summary>Створює таблиці (якщо їх ще немає) і, якщо задано Admin:Password, першого адміністратора.</summary>
     public static async Task InitializeAsync(IServiceProvider services)
     {
         using var scope = services.CreateScope();
@@ -17,16 +23,11 @@ public static class DbInitializer
 
         await db.Database.EnsureCreatedAsync();
 
-        if (!await db.Users.AnyAsync())
+        var password = config["Admin:Password"];
+        if (!await db.Users.AnyAsync() && !string.IsNullOrWhiteSpace(password))
         {
+            // Адміністратор із конфігурації (зручно для хостингів зі змінними середовища, напр. Render).
             var login = config["Admin:Login"] ?? "admin";
-            var password = config["Admin:Password"];
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                password = "Admin123!";
-                log.LogWarning("Admin:Password не задано — створено адміністратора '{Login}' з паролем за замовчуванням. ЗМІНІТЬ ЙОГО після входу!", login);
-            }
-
             var admin = new AppUser
             {
                 Login = login,
@@ -39,6 +40,12 @@ public static class DbInitializer
             log.LogInformation("Створено першого адміністратора '{Login}'", login);
         }
 
-        await sp.GetRequiredService<IFileStorage>().EnsureReadyAsync();
+        // Якщо користувачів немає — сайт покаже майстер першого запуску (/Setup).
+        sp.GetRequiredService<SetupState>().NeedsSetup = !await db.Users.AnyAsync();
+        if (sp.GetRequiredService<SetupState>().NeedsSetup)
+            log.LogWarning("Немає жодного користувача — відкрийте сайт і створіть адміністратора на сторінці /Setup");
+
+        var storages = sp.GetRequiredService<StorageResolver>();
+        await (await storages.ActiveAsync()).EnsureReadyAsync();
     }
 }

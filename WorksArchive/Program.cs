@@ -15,41 +15,35 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ---------- База даних (Supabase PostgreSQL у хмарі, або SQLite локально) ----------
-var dbProvider = builder.Configuration["Database:Provider"] ?? "Postgres";
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("Не задано ConnectionStrings:Default");
+var dbProvider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+var connectionString = builder.Configuration.GetConnectionString("Default") ?? "Data Source=App_Data/works.db";
+var useSqlite = dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase);
 Directory.CreateDirectory(Path.Combine(builder.Environment.ContentRootPath, "App_Data"));
+if (useSqlite)
+{
+    // Відносний шлях до файлу БД рахуємо від папки сайту (на IIS поточна папка може бути іншою).
+    var csb = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString);
+    if (!Path.IsPathRooted(csb.DataSource))
+        csb.DataSource = Path.Combine(builder.Environment.ContentRootPath, csb.DataSource);
+    connectionString = csb.ToString();
+}
 builder.Services.AddDbContext<AppDbContext>(o =>
 {
-    if (dbProvider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase)) o.UseSqlite(connectionString);
+    if (useSqlite) o.UseSqlite(connectionString);
     else o.UseNpgsql(connectionString);
 });
 
 // ---------- Файлове сховище (Supabase Storage або локальна папка) ----------
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<UploadOptions>(builder.Configuration.GetSection("Upload"));
-var storageProvider = (builder.Configuration["Storage:Provider"] ?? "GoogleDrive").ToLowerInvariant();
-switch (storageProvider)
-{
-    case "local":
-        builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
-        break;
-    case "s3": // Backblaze B2, Oracle Cloud, Cloudflare R2, IDrive e2, MinIO...
-        builder.Services.AddSingleton<S3Storage>();
-        builder.Services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<S3Storage>());
-        break;
-    case "supabase":
-        builder.Services.AddHttpClient<SupabaseStorage>();
-        builder.Services.AddTransient<IFileStorage>(sp => sp.GetRequiredService<SupabaseStorage>());
-        break;
-    case "googledrive":
-        builder.Services.AddHttpClient<GoogleDriveStorage>();
-        builder.Services.AddScoped<IFileStorage>(sp => sp.GetRequiredService<GoogleDriveStorage>());
-        break;
-    default:
-        throw new InvalidOperationException($"Невідомий Storage:Provider '{storageProvider}'. Допустимо: GoogleDrive, S3, Supabase, Local.");
-}
+// Усі сховища реєструються; яке з них активне — вирішує StorageResolver (налаштовується в адмін-панелі).
+builder.Services.AddSingleton<LocalFileStorage>();
+builder.Services.AddSingleton<S3Storage>();          // створюється лише якщо задано Storage:S3
+builder.Services.AddHttpClient<SupabaseStorage>();   // створюється лише якщо задано Storage:Supabase
+builder.Services.AddHttpClient<GoogleDriveStorage>();
+builder.Services.AddScoped<StorageResolver>();
 
+builder.Services.AddSingleton<SetupState>();
 builder.Services.AddScoped<WorkService>();
 builder.Services.AddMemoryCache();
 builder.Services.AddScoped<SettingsService>();
@@ -146,6 +140,28 @@ app.UseRequestLocalization(o =>
 });
 
 app.UseStaticFiles();
+
+// Ліміт розміру запиту для будь-якого сервера (Kestrel, IIS на MonsterASP тощо).
+app.Use(async (ctx, next) =>
+{
+    var feature = ctx.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+    if (feature is { IsReadOnly: false }) feature.MaxRequestBodySize = maxBody;
+    await next();
+});
+
+// Перший запуск: поки немає жодного користувача, усі сторінки ведуть на майстер створення адміністратора.
+app.Use(async (ctx, next) =>
+{
+    var setup = ctx.RequestServices.GetRequiredService<SetupState>();
+    var path = ctx.Request.Path;
+    if (setup.NeedsSetup && !path.StartsWithSegments("/Setup") && !path.StartsWithSegments("/health"))
+    {
+        ctx.Response.Redirect("/Setup");
+        return;
+    }
+    await next();
+});
+
 app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();

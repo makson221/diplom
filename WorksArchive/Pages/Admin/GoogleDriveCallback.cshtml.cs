@@ -5,12 +5,11 @@ using WorksArchive.Services;
 namespace WorksArchive.Pages.Admin;
 
 /// <summary>Сюди Google повертає адміністратора після дозволу доступу до Drive.</summary>
-public class GoogleDriveCallbackModel(IFileStorage storage, ILogger<GoogleDriveCallbackModel> log) : PageModel
+public class GoogleDriveCallbackModel(GoogleDriveStorage drive, ILogger<GoogleDriveCallbackModel> log) : PageModel
 {
     public async Task<IActionResult> OnGetAsync(string? code, string? state, string? error)
     {
         var expected = TempData[StorageModel.StateKey] as string;
-        if (storage is not GoogleDriveStorage drive) return RedirectToPage("/Admin/Storage");
 
         if (!string.IsNullOrEmpty(error))
             TempData["Error"] = error == "access_denied" ? "Доступ до Google Drive не надано" : $"Google повернув помилку: {error}";

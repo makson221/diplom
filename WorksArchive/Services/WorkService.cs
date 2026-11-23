@@ -61,7 +61,7 @@ public record StorageUsage(string Provider, int WorkCount, long WorksBytes, long
     public long? WorksLeft => FreeBytes is { } f ? f / Math.Max(AverageWorkBytes, 5L * 1024 * 1024) : null;
 }
 
-public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadOptions> options, IOptions<StorageOptions> storageOptions)
+public class WorkService(AppDbContext db, StorageResolver storages, IOptions<UploadOptions> options)
 {
     public static readonly string[] AllowedExtensions =
         [".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".ppt", ".pptx", ".xls", ".xlsx", ".zip", ".rar", ".7z"];
@@ -100,6 +100,8 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
             GroupName: groupName,
             Category: input.Type == WorkType.Diploma ? "Дипломні" : "Курсові");
 
+        var providerName = await storages.ActiveNameAsync();
+        var storage = storages.Get(providerName);
         string key;
         await using (var stream = file.OpenReadStream())
             key = await storage.UploadAsync(info, stream, ct);
@@ -112,7 +114,9 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
             StudentName = input.StudentName.Trim(),
             Title = input.Title.Trim(),
             OriginalFileName = Path.GetFileName(file.FileName),
+            StorageProvider = providerName,
             StoragePath = key,
+            SearchText = $"{input.StudentName.Trim()} {input.Title.Trim()}".ToLowerInvariant(),
             ContentType = contentType,
             SizeBytes = file.Length,
             UploadedBy = uploadedBy
@@ -130,11 +134,15 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
         return work;
     }
 
+    /// <summary>Відкриває файл роботи з того сховища, куди його було збережено.</summary>
+    public Task<Stream> OpenReadAsync(Work work, CancellationToken ct = default) =>
+        storages.Get(work.StorageProvider).OpenReadAsync(work.StoragePath, ct);
+
     public async Task DeleteAsync(Work work, CancellationToken ct = default)
     {
         db.Works.Remove(work);
         await db.SaveChangesAsync(ct);
-        await storage.DeleteAsync(work.StoragePath, ct);
+        await storages.Get(work.StorageProvider).DeleteAsync(work.StoragePath, ct);
     }
 
     public IQueryable<Work> Query(WorkFilter f)
@@ -145,8 +153,8 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
         if (f.Type.HasValue) q = q.Where(w => w.Type == f.Type);
         if (!string.IsNullOrWhiteSpace(f.Q))
         {
-            var s = f.Q.Trim().ToLower();
-            q = q.Where(w => w.StudentName.ToLower().Contains(s) || w.Title.ToLower().Contains(s));
+            var s = f.Q.Trim().ToLowerInvariant();
+            q = q.Where(w => w.SearchText.Contains(s));
         }
         return q.OrderByDescending(w => w.Year).ThenBy(w => w.Group.Name).ThenBy(w => w.StudentName);
     }
@@ -177,14 +185,14 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
                     await using var target = await entry.OpenAsync(ct);
                     try
                     {
-                        await using var source = await storage.OpenReadAsync(w.StoragePath, ct);
+                        await using var source = await OpenReadAsync(w, ct);
                         await source.CopyToAsync(target, ct);
                     }
-                    catch (FileNotFoundException)
+                    catch (Exception ex) when (ex is FileNotFoundException or StorageException or HttpRequestException)
                     {
                         // Файл зник зі сховища — пишемо замітку замість падіння всього архіву.
                         await using var sw = new StreamWriter(target);
-                        await sw.WriteAsync("Файл не знайдено у сховищі.");
+                        await sw.WriteAsync("Не вдалося отримати файл зі сховища: " + ex.Message);
                     }
                 }
             }
@@ -211,12 +219,15 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
     /// </summary>
     public async Task<StorageUsage> GetUsageAsync(CancellationToken ct = default)
     {
-        var worksBytes = await db.Works.AnyAsync(ct) ? await db.Works.SumAsync(w => w.SizeBytes, ct) : 0;
-        var count = await db.Works.CountAsync(ct);
+        var name = await storages.ActiveNameAsync();
+        var storage = storages.Get(name);
+        var inActive = db.Works.Where(w => w.StorageProvider == name);
+        var count = await inActive.CountAsync(ct);
+        var worksBytes = count > 0 ? await inActive.SumAsync(w => w.SizeBytes, ct) : 0;
         var quota = await storage.GetQuotaAsync(ct);
         var used = quota?.UsedBytes ?? worksBytes;
-        var limit = quota is not null ? quota.LimitBytes : (long)(storageOptions.Value.QuotaGb * 1024 * 1024 * 1024);
-        return new StorageUsage(storage.DisplayName, count, worksBytes, used, limit, quota is not null);
+        var limit = quota is not null ? quota.LimitBytes : (long)(await storages.QuotaGbAsync() * 1024 * 1024 * 1024);
+        return new StorageUsage(StorageResolver.Title(name), count, worksBytes, used, limit, quota is not null);
     }
 
     public static string FormatSize(long bytes) => bytes switch

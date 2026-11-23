@@ -7,7 +7,7 @@ using WorksArchive.Services;
 namespace WorksArchive.Pages.Works;
 
 /// <summary>Панель викладача: фільтр за групою/роком, завантаження окремих файлів або ZIP-архіву.</summary>
-public class IndexModel(AppDbContext db, WorkService works, IFileStorage storage, ILogger<IndexModel> log) : PageModel
+public class IndexModel(AppDbContext db, WorkService works, ILogger<IndexModel> log) : PageModel
 {
     private const int PageSize = 50;
 
@@ -40,12 +40,18 @@ public class IndexModel(AppDbContext db, WorkService works, IFileStorage storage
         if (w is null) return NotFound();
         try
         {
-            var stream = await storage.OpenReadAsync(w.StoragePath, HttpContext.RequestAborted);
+            var stream = await works.OpenReadAsync(w, HttpContext.RequestAborted);
             return File(stream, w.ContentType, w.OriginalFileName);
         }
         catch (FileNotFoundException)
         {
             TempData["Error"] = "Файл не знайдено у сховищі";
+            return RedirectToPage();
+        }
+        catch (Exception ex) when (ex is StorageException or HttpRequestException)
+        {
+            log.LogError(ex, "Помилка читання файлу роботи #{Id}", id);
+            TempData["Error"] = ex.Message;
             return RedirectToPage();
         }
     }
