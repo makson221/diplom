@@ -46,7 +46,22 @@ public class WorkFilter
     public string? Q { get; set; }
 }
 
-public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadOptions> options)
+/// <param name="Provider">Назва сховища.</param>
+/// <param name="WorkCount">Кількість робіт.</param>
+/// <param name="WorksBytes">Скільки займають файли робіт.</param>
+/// <param name="UsedBytes">Скільки зайнято у сховищі загалом (для Google Drive — разом із Gmail/Фото акаунта).</param>
+/// <param name="LimitBytes">Ліміт сховища (null — необмежено).</param>
+/// <param name="FromProvider">true — дані від самого сховища, false — оцінка за БД і налаштуванням QuotaGb.</param>
+public record StorageUsage(string Provider, int WorkCount, long WorksBytes, long UsedBytes, long? LimitBytes, bool FromProvider)
+{
+    public double Percent => LimitBytes is > 0 ? Math.Min(100, UsedBytes * 100.0 / LimitBytes.Value) : 0;
+    public long? FreeBytes => LimitBytes is { } l ? Math.Max(0, l - UsedBytes) : null;
+    public long AverageWorkBytes => WorkCount > 0 ? WorksBytes / WorkCount : 0;
+    /// <summary>Приблизно скільки ще робіт поміститься (за середнім розміром, або 5 МБ якщо робіт ще немає).</summary>
+    public long? WorksLeft => FreeBytes is { } f ? f / Math.Max(AverageWorkBytes, 5L * 1024 * 1024) : null;
+}
+
+public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadOptions> options, IOptions<StorageOptions> storageOptions)
 {
     public static readonly string[] AllowedExtensions =
         [".pdf", ".doc", ".docx", ".odt", ".rtf", ".txt", ".ppt", ".pptx", ".xls", ".xlsx", ".zip", ".rar", ".7z"];
@@ -75,8 +90,19 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
         if (!ContentTypes.TryGetContentType(file.FileName, out var contentType))
             contentType = "application/octet-stream";
 
+        var groupName = await db.Groups.Where(g => g.Id == input.GroupId).Select(g => g.Name).FirstAsync(ct);
+        var info = new StoredFileInfo(
+            Path: path,
+            FriendlyName: $"{input.StudentName.Trim()} - {Path.GetFileName(file.FileName)}",
+            ContentType: contentType,
+            Size: file.Length,
+            Year: input.Year,
+            GroupName: groupName,
+            Category: input.Type == WorkType.Diploma ? "Дипломні" : "Курсові");
+
+        string key;
         await using (var stream = file.OpenReadStream())
-            await storage.UploadAsync(path, stream, contentType, ct);
+            key = await storage.UploadAsync(info, stream, ct);
 
         var work = new Work
         {
@@ -86,7 +112,7 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
             StudentName = input.StudentName.Trim(),
             Title = input.Title.Trim(),
             OriginalFileName = Path.GetFileName(file.FileName),
-            StoragePath = path,
+            StoragePath = key,
             ContentType = contentType,
             SizeBytes = file.Length,
             UploadedBy = uploadedBy
@@ -98,7 +124,7 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
         }
         catch
         {
-            await storage.DeleteAsync(path, CancellationToken.None);
+            await storage.DeleteAsync(key, CancellationToken.None);
             throw;
         }
         return work;
@@ -179,10 +205,25 @@ public class WorkService(AppDbContext db, IFileStorage storage, IOptions<UploadO
         return clean.Length == 0 ? "_" : clean;
     }
 
+    /// <summary>
+    /// Заповненість сховища: скільки займають роботи (за БД), скільки зайнято всього і який ліміт.
+    /// Google Drive повідомляє реальну квоту акаунта; для інших сховищ ліміт береться з Storage:QuotaGb.
+    /// </summary>
+    public async Task<StorageUsage> GetUsageAsync(CancellationToken ct = default)
+    {
+        var worksBytes = await db.Works.AnyAsync(ct) ? await db.Works.SumAsync(w => w.SizeBytes, ct) : 0;
+        var count = await db.Works.CountAsync(ct);
+        var quota = await storage.GetQuotaAsync(ct);
+        var used = quota?.UsedBytes ?? worksBytes;
+        var limit = quota is not null ? quota.LimitBytes : (long)(storageOptions.Value.QuotaGb * 1024 * 1024 * 1024);
+        return new StorageUsage(storage.DisplayName, count, worksBytes, used, limit, quota is not null);
+    }
+
     public static string FormatSize(long bytes) => bytes switch
     {
         < 1024 => $"{bytes} Б",
         < 1024 * 1024 => $"{bytes / 1024.0:0.#} КБ",
-        _ => $"{bytes / 1024.0 / 1024.0:0.#} МБ"
+        < 1024L * 1024 * 1024 => $"{bytes / 1024.0 / 1024.0:0.#} МБ",
+        _ => $"{bytes / 1024.0 / 1024.0 / 1024.0:0.##} ГБ"
     };
 }

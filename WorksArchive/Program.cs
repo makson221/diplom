@@ -28,15 +28,26 @@ builder.Services.AddDbContext<AppDbContext>(o =>
 // ---------- Файлове сховище (Supabase Storage або локальна папка) ----------
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection("Storage"));
 builder.Services.Configure<UploadOptions>(builder.Configuration.GetSection("Upload"));
-var storageProvider = builder.Configuration["Storage:Provider"] ?? "Supabase";
-if (storageProvider.Equals("Local", StringComparison.OrdinalIgnoreCase))
+var storageProvider = (builder.Configuration["Storage:Provider"] ?? "GoogleDrive").ToLowerInvariant();
+switch (storageProvider)
 {
-    builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
-}
-else
-{
-    builder.Services.AddHttpClient<SupabaseStorage>();
-    builder.Services.AddTransient<IFileStorage>(sp => sp.GetRequiredService<SupabaseStorage>());
+    case "local":
+        builder.Services.AddSingleton<IFileStorage, LocalFileStorage>();
+        break;
+    case "s3": // Backblaze B2, Oracle Cloud, Cloudflare R2, IDrive e2, MinIO...
+        builder.Services.AddSingleton<S3Storage>();
+        builder.Services.AddSingleton<IFileStorage>(sp => sp.GetRequiredService<S3Storage>());
+        break;
+    case "supabase":
+        builder.Services.AddHttpClient<SupabaseStorage>();
+        builder.Services.AddTransient<IFileStorage>(sp => sp.GetRequiredService<SupabaseStorage>());
+        break;
+    case "googledrive":
+        builder.Services.AddHttpClient<GoogleDriveStorage>();
+        builder.Services.AddScoped<IFileStorage>(sp => sp.GetRequiredService<GoogleDriveStorage>());
+        break;
+    default:
+        throw new InvalidOperationException($"Невідомий Storage:Provider '{storageProvider}'. Допустимо: GoogleDrive, S3, Supabase, Local.");
 }
 
 builder.Services.AddScoped<WorkService>();
@@ -126,6 +137,13 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Error");
     app.UseHsts();
 }
+
+// Українські формати чисел і дат ("2 457", "23.11.2026").
+app.UseRequestLocalization(o =>
+{
+    o.SetDefaultCulture("uk-UA");
+    o.RequestCultureProviders.Clear();
+});
 
 app.UseStaticFiles();
 app.UseRouting();

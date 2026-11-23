@@ -1,0 +1,40 @@
+@model StorageUsage
+@{
+    var bar = Model.Percent switch { >= 90 => "bg-danger", >= 75 => "bg-warning", _ => "bg-success" };
+}
+<div class="d-flex justify-content-between small mb-1">
+    <span><i class="bi bi-hdd"></i> @Model.Provider</span>
+    @if (Model.LimitBytes is { } limit)
+    {
+        <span>зайнято <b>@WorkService.FormatSize(Model.UsedBytes)</b> з @WorkService.FormatSize(limit)</span>
+    }
+    else
+    {
+        <span>зайнято <b>@WorkService.FormatSize(Model.UsedBytes)</b></span>
+    }
+</div>
+@if (Model.LimitBytes is > 0)
+{
+    <div class="progress" style="height: 10px" role="progressbar" aria-valuenow="@((int)Model.Percent)" aria-valuemin="0" aria-valuemax="100">
+        <div class="progress-bar @bar" style="width: @(Model.Percent.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></div>
+    </div>
+    <div class="small text-body-secondary mt-1">
+        Вільно @WorkService.FormatSize(Model.FreeBytes ?? 0)
+        @if (Model.WorksLeft is { } left)
+        {
+            <text>· вистачить приблизно ще на <b>@left.ToString("N0")</b> робіт</text>
+        }
+        @if (Model.FromProvider && Model.UsedBytes > Model.WorksBytes)
+        {
+            <br /><text>Роботи займають @WorkService.FormatSize(Model.WorksBytes), решта — інші файли цього Google-акаунта (Gmail, Фото).</text>
+        }
+        @if (!Model.FromProvider)
+        {
+            <br /><text>Оцінка за розміром завантажених робіт; ліміт задається параметром Storage:QuotaGb.</text>
+        }
+    </div>
+}
+@if (Model.Percent >= 90)
+{
+    <div class="alert alert-danger small mt-2 mb-0 py-2"><i class="bi bi-exclamation-triangle"></i> Сховище майже заповнене!</div>
+}

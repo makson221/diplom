@@ -17,6 +17,14 @@
         <div class="text-muted small">Користувачів</div><div class="display-6 text-body">@Model.UserCount</div></div></a></div>
 </div>
 
+<div class="card p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="mb-0"><i class="bi bi-hdd-stack"></i> Сховище</h5>
+        <a href="/Admin/Storage" class="small">Детальніше →</a>
+    </div>
+    <partial name="_StorageUsage" model="Model.Usage" />
+</div>
+
 <div class="row g-3">
     <div class="col-lg-7">
         <div class="card p-3 h-100">
@@ -35,7 +43,7 @@
                             <td>@w.StudentName<div class="small text-muted text-truncate" style="max-width:300px">@w.Title</div></td>
                             <td>@w.Group.Name</td>
                             <td>@(w.Type == WorkType.Diploma ? "Диплом" : "Курсова")</td>
-                            <td class="small text-muted text-nowrap">@w.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                            <td class="small text-muted text-nowrap">@w.UploadedAt.ToKyivText()</td>
                         </tr>
                     }
                     </tbody>

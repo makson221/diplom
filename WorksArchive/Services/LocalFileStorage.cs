@@ -5,6 +5,8 @@ namespace WorksArchive.Services;
 /// <summary>Локальне сховище у папці — для розробки та тестування без інтернету.</summary>
 public class LocalFileStorage(IOptions<StorageOptions> options, IWebHostEnvironment env) : IFileStorage
 {
+    public string DisplayName => "Локальна папка";
+
     private readonly string _root = Path.GetFullPath(Path.Combine(env.ContentRootPath, options.Value.LocalPath));
 
     private string Resolve(string path)
@@ -21,12 +23,13 @@ public class LocalFileStorage(IOptions<StorageOptions> options, IWebHostEnvironm
         return Task.CompletedTask;
     }
 
-    public async Task UploadAsync(string path, Stream content, string contentType, CancellationToken ct = default)
+    public async Task<string> UploadAsync(StoredFileInfo file, Stream content, CancellationToken ct = default)
     {
-        var full = Resolve(path);
+        var full = Resolve(file.Path);
         Directory.CreateDirectory(Path.GetDirectoryName(full)!);
         await using var fs = File.Create(full);
         await content.CopyToAsync(fs, ct);
+        return file.Path;
     }
 
     public Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)

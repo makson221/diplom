@@ -97,7 +97,7 @@ else
                         <td>@w.Year</td>
                         <td class="small"><div class="text-truncate" style="max-width:180px" title="@w.OriginalFileName">@w.OriginalFileName</div>
                             <span class="text-muted">@WorkService.FormatSize(w.SizeBytes)</span></td>
-                        <td class="small text-muted">@w.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")<br />@(w.UploadedBy ?? "студент")</td>
+                        <td class="small text-muted">@w.UploadedAt.ToKyivText()<br />@(w.UploadedBy ?? "студент")</td>
                         <td class="text-end text-nowrap">
                             <a class="btn btn-sm btn-primary" asp-page-handler="Download" asp-route-id="@w.Id" title="Завантажити"><i class="bi bi-download"></i></a>
                             <form method="post" asp-page-handler="Delete" asp-route-id="@w.Id" class="d-inline"

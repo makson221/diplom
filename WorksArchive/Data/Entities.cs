@@ -14,6 +14,21 @@ public enum WorkType
 
 public static class EnumText
 {
+    private static readonly TimeZoneInfo Kyiv = FindKyiv();
+
+    private static TimeZoneInfo FindKyiv()
+    {
+        foreach (var id in new[] { "Europe/Kyiv", "Europe/Kiev", "FLE Standard Time" })
+        {
+            try { return TimeZoneInfo.FindSystemTimeZoneById(id); } catch { /* пробуємо наступний */ }
+        }
+        return TimeZoneInfo.Local;
+    }
+
+    /// <summary>UTC-час з БД → київський час для показу (сервер на хостингу працює в UTC).</summary>
+    public static string ToKyivText(this DateTime utc) =>
+        TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), Kyiv).ToString("dd.MM.yyyy HH:mm");
+
     public static string ToUa(this WorkType t) => t switch
     {
         WorkType.Coursework => "Курсова робота",

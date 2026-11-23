@@ -16,6 +16,8 @@ public class SupabaseStorage : IFileStorage
     private readonly string _bucket;
     private readonly ILogger<SupabaseStorage> _log;
 
+    public string DisplayName => "Supabase Storage";
+
     public SupabaseStorage(HttpClient http, IOptions<StorageOptions> options, ILogger<SupabaseStorage> log)
     {
         var o = options.Value.Supabase;
@@ -47,16 +49,17 @@ public class SupabaseStorage : IFileStorage
                 _bucket, (int)create.StatusCode, await create.Content.ReadAsStringAsync(ct));
     }
 
-    public async Task UploadAsync(string path, Stream content, string contentType, CancellationToken ct = default)
+    public async Task<string> UploadAsync(StoredFileInfo file, Stream content, CancellationToken ct = default)
     {
-        using var req = new HttpRequestMessage(HttpMethod.Post, $"object/{_bucket}/{path}");
+        using var req = new HttpRequestMessage(HttpMethod.Post, $"object/{_bucket}/{file.Path}");
         req.Content = new StreamContent(content);
-        req.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
+        req.Content.Headers.ContentType = MediaTypeHeaderValue.Parse(file.ContentType);
         req.Headers.Add("x-upsert", "true");
 
         using var resp = await _http.SendAsync(req, ct);
         if (!resp.IsSuccessStatusCode)
             throw new StorageException($"Помилка завантаження у сховище: {(int)resp.StatusCode} {await resp.Content.ReadAsStringAsync(ct)}");
+        return file.Path;
     }
 
     public async Task<Stream> OpenReadAsync(string path, CancellationToken ct = default)
@@ -87,5 +90,3 @@ public class SupabaseStorage : IFileStorage
             _log.LogWarning("Не вдалося видалити '{Path}' зі сховища: {Status}", path, (int)resp.StatusCode);
     }
 }
-
-public class StorageException(string message) : Exception(message);

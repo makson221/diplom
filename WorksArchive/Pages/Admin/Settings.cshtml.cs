@@ -4,16 +4,13 @@ using WorksArchive.Services;
 
 namespace WorksArchive.Pages.Admin;
 
-public class SettingsModel(SettingsService settings, WorkService works, IConfiguration config) : PageModel
+public class SettingsModel(SettingsService settings) : PageModel
 {
     [BindProperty] public bool AllowStudentUpload { get; set; }
     [BindProperty] public string? StudentUploadCode { get; set; }
     [BindProperty] public string? DefaultMode { get; set; }
     [BindProperty] public string? DefaultAccent { get; set; }
 
-    public string DbProvider => config["Database:Provider"] == "Sqlite" ? "SQLite (локально)" : "PostgreSQL (Supabase)";
-    public string StorageProvider => config["Storage:Provider"] == "Local" ? "Локальна папка" : "Supabase Storage (хмара)";
-    public int MaxMb => works.MaxFileSizeMb;
 
     public async Task OnGetAsync()
     {

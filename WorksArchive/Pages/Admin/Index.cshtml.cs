@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using WorksArchive.Data;
+using WorksArchive.Services;
 
 namespace WorksArchive.Pages.Admin;
 
-public class IndexModel(AppDbContext db) : PageModel
+public class IndexModel(AppDbContext db, WorkService works) : PageModel
 {
     public record GroupYearRow(int GroupId, string Group, int Year, int Count);
 
@@ -16,9 +17,11 @@ public class IndexModel(AppDbContext db) : PageModel
     public int UserCount { get; private set; }
     public List<Work> Recent { get; private set; } = new();
     public List<GroupYearRow> ByGroupYear { get; private set; } = new();
+    public StorageUsage Usage { get; private set; } = null!;
 
     public async Task OnGetAsync()
     {
+        Usage = await works.GetUsageAsync(HttpContext.RequestAborted);
         TotalWorks = await db.Works.CountAsync();
         TotalSize = TotalWorks > 0 ? await db.Works.SumAsync(w => w.SizeBytes) : 0;
         Diplomas = await db.Works.CountAsync(w => w.Type == WorkType.Diploma);

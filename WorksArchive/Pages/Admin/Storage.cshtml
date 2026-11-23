@@ -1,0 +1,80 @@
+@page
+@model WorksArchive.Pages.Admin.StorageModel
+@{
+    ViewData["Title"] = "Сховище";
+}
+<h3 class="mb-4"><i class="bi bi-hdd-stack text-primary"></i> Сховище файлів</h3>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card p-4 mb-3">
+            <h5 class="mb-3">Заповненість</h5>
+            <partial name="_StorageUsage" model="Model.Usage" />
+            <dl class="row small mt-3 mb-0">
+                <dt class="col-5">Робіт в архіві</dt><dd class="col-7">@Model.Usage.WorkCount.ToString("N0")</dd>
+                <dt class="col-5">Середній розмір роботи</dt><dd class="col-7">@WorkService.FormatSize(Model.Usage.AverageWorkBytes)</dd>
+                <dt class="col-5">База даних</dt><dd class="col-7">@Model.DbProvider</dd>
+                <dt class="col-5">Макс. розмір файлу</dt><dd class="col-7">@Model.MaxMb МБ</dd>
+            </dl>
+        </div>
+
+        @if (Model.Drive is not null)
+        {
+            <div class="card p-4">
+                <h5><i class="bi bi-google"></i> Підключення Google Drive</h5>
+                @if (!Model.Drive.IsConfigured)
+                {
+                    <div class="alert alert-warning mb-0">
+                        Не задано <code>Storage:GoogleDrive:ClientId</code> і <code>ClientSecret</code>.
+                        Створіть OAuth-клієнт у Google Cloud Console (інструкція в README) і перезапустіть застосунок.
+                    </div>
+                }
+                else if (Model.DriveConnected)
+                {
+                    <p class="mb-2"><i class="bi bi-check-circle-fill text-success"></i> Підключено акаунт <b>@Model.DriveAccount</b></p>
+                    <p class="small text-body-secondary">Роботи зберігаються в папці «@Model.DriveRoot» на цьому Google Drive, розкладені за роками, групами і типом.
+                        Застосунок має доступ лише до файлів, які створив сам.</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a asp-page-handler="Connect" class="btn btn-outline-primary"><i class="bi bi-arrow-repeat"></i> Підключити інший акаунт</a>
+                        <form method="post" asp-page-handler="Disconnect"
+                              onsubmit="return confirm('Відключити Google Drive? Файли на Drive залишаться, але скачати роботи через сайт буде неможливо, доки не підключите знову ТОЙ САМИЙ акаунт.');">
+                            <button class="btn btn-outline-danger"><i class="bi bi-x-circle"></i> Відключити</button>
+                        </form>
+                    </div>
+                    <div class="alert alert-info small mt-3 mb-0">
+                        <i class="bi bi-info-circle"></i> Якщо підключити інший Google-акаунт, вже збережені роботи залишаться на старому і через сайт стануть недоступні.
+                    </div>
+                }
+                else
+                {
+                    <p>Google Drive ще не підключено — студенти і викладачі не зможуть завантажувати роботи.</p>
+                    <p class="small text-body-secondary mb-3">Рекомендуємо завести окремий Gmail-акаунт саме для архіву (15 ГБ безкоштовно).</p>
+                    <a asp-page-handler="Connect" class="btn btn-primary"><i class="bi bi-google"></i> Підключити Google Drive</a>
+                }
+                @if (Model.Drive.IsConfigured)
+                {
+                    <div class="small text-body-secondary mt-3">
+                        Redirect URI для Google Cloud Console: <code class="user-select-all">@Model.RedirectUri</code>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <h5>Безкоштовні варіанти</h5>
+            <table class="table table-sm small mb-2">
+                <thead><tr><th>Сховище</th><th>Безкоштовно</th><th>Provider</th></tr></thead>
+                <tbody>
+                    <tr><td>Google Drive</td><td>15 ГБ</td><td><code>GoogleDrive</code></td></tr>
+                    <tr><td>Oracle Cloud Object Storage</td><td>20 ГБ*</td><td><code>S3</code></td></tr>
+                    <tr><td>Backblaze B2</td><td>10 ГБ</td><td><code>S3</code></td></tr>
+                    <tr><td>Cloudflare R2</td><td>10 ГБ*</td><td><code>S3</code></td></tr>
+                    <tr><td>Supabase Storage</td><td>1 ГБ</td><td><code>Supabase</code></td></tr>
+                </tbody>
+            </table>
+            <div class="small text-body-secondary">* потрібна банківська картка при реєстрації. Сховище змінюється параметром <code>Storage:Provider</code> (див. README).</div>
+        </div>
+    </div>
+</div>
