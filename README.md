@@ -118,25 +118,45 @@ dotnet run --launch-profile "Local (SQLite)"
 
 `QuotaGb` — розмір безкоштовного ліміту для індикатора заповненості (S3-сервіси самі його не повідомляють).
 
-## 4. Розміщення в інтернеті (безкоштовно)
+## 4. Розміщення в інтернеті (безкоштовно, Render.com)
 
-Підійде будь-який хостинг, що вміє запускати Docker, наприклад **Render.com** (план Free):
+Сайт працюватиме за адресою на кшталт `https://works-archive.onrender.com`, і викладачі зможуть заходити з будь-якого комп'ютера чи телефону.
+У репозиторії вже є все потрібне: `WorksArchive/Dockerfile` і `render.yaml`.
 
-1. New → **Web Service** → підключіть цей GitHub-репозиторій.
-2. Root Directory: `WorksArchive`, Runtime: **Docker**.
-3. Environment Variables (подвійне підкреслення `__` означає вкладеність):
+**Перед початком** підготуйте:
+- рядок підключення до бази **Neon** (розділ 2);
+- **Client ID** і **Client Secret** Google (розділ 3а, кроки 1–6);
+- код у гілці **`main`** на GitHub. Render бере код звідти.
 
-| Змінна | Значення |
-|---|---|
-| `ConnectionStrings__Default` | рядок підключення Neon |
-| `Storage__Provider` | `GoogleDrive` (або `S3`) |
-| `Storage__GoogleDrive__ClientId` / `Storage__GoogleDrive__ClientSecret` | з Google Cloud Console |
-| `Storage__S3__...` | якщо використовуєте S3 |
-| `Admin__Password` | пароль першого адміністратора |
+**Кроки:**
+1. Зареєструйтеся на https://render.com через **GitHub** (картка не потрібна).
+2. **New → Blueprint** → дозвольте Render доступ до репозиторію `diplom` → оберіть його.
+3. Render прочитає `render.yaml` і попросить ввести секрети:
 
-4. Додайте адресу сайту `https://<назва>.onrender.com/Admin/GoogleDriveCallback` у Redirect URIs в Google Cloud Console і підключіть Drive в адмін-панелі.
+   | Змінна | Що вписати |
+   |---|---|
+   | `ConnectionStrings__Default` | рядок підключення Neon |
+   | `Storage__GoogleDrive__ClientId` | Client ID від Google |
+   | `Storage__GoogleDrive__ClientSecret` | Client Secret від Google |
+   | `Admin__Password` | пароль адміністратора (придумайте надійний) |
 
-Безкоштовний сервер Render «засинає», якщо ним не користуються, тож перше відкриття після паузи триває близько 30–60 секунд. Дані при цьому не губляться.
+4. **Apply**. Перша збірка триває 3–5 хвилин. Після неї з'явиться адреса сайту, наприклад `https://works-archive.onrender.com`.
+5. У **Google Cloud Console → Clients** → ваш клієнт → **Authorized redirect URIs** додайте
+   `https://works-archive.onrender.com/Admin/GoogleDriveCallback` (з вашою адресою).
+6. Відкрийте сайт, увійдіть як `admin` → **Адмін-панель → Сховище → Підключити Google Drive**.
+7. **Адмін-панель → Групи**: додайте групи. **Користувачі**: створіть викладачів і передайте їм адресу сайту, логін і пароль.
+
+Після цього кожна зміна коду в гілці `main` автоматично оновлює сайт.
+
+**Про «засинання».** Безкоштовний сервер Render засинає після 15 хвилин без відвідувачів, і перше відкриття після цього триває близько хвилини. Дані не губляться: вони в Neon і Google Drive. Щоб сайт не засинав:
+1. Зареєструйтеся на https://uptimerobot.com (безкоштовно).
+2. **Add New Monitor** → тип **HTTP(s)** → URL `https://works-archive.onrender.com/health`, інтервал **5 хвилин**.
+
+Одного сервісу, що працює цілодобово, вистачає на місяць: це ~720 годин із 750 безкоштовних.
+
+**Власна адреса (необов'язково).** У Render → Settings → **Custom Domains** можна підключити домен, наприклад `archive.college.edu.ua`, якщо його надасть адміністратор сайту закладу.
+
+**Інші хостинги.** Застосунок запуститься на будь-якому хостингу з Docker: Koyeb, Railway, Azure App Service тощо. Порт береться зі змінної `PORT`, налаштування — зі змінних середовища (див. таблицю вище). Є й безкоштовні хостинги саме для ASP.NET, наприклад MonsterASP.NET: туди публікують з Visual Studio (Publish → Web Deploy) і задають ті самі налаштування в `appsettings.Local.json`.
 
 ## Налаштування (`appsettings.json`)
 

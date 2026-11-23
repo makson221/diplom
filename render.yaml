@@ -1,0 +1,23 @@
+# Render Blueprint: New → Blueprint → оберіть цей репозиторій.
+# Значення з "sync: false" Render попросить ввести під час створення (це секрети, вони не зберігаються в git).
+services:
+  - type: web
+    name: works-archive
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./WorksArchive/Dockerfile
+    dockerContext: ./WorksArchive
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: ConnectionStrings__Default
+        sync: false
+      - key: Storage__Provider
+        value: GoogleDrive
+      - key: Storage__GoogleDrive__ClientId
+        sync: false
+      - key: Storage__GoogleDrive__ClientSecret
+        sync: false
+      - key: Admin__Password
+        sync: false

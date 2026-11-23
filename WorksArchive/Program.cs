@@ -152,4 +152,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapRazorPages();
 
+// Для хостингу: перевірка, що сервер живий (не звертається до БД, працює миттєво).
+app.MapGet("/health", () => Results.Text("ok"));
+
 app.Run();
