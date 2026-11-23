@@ -18,6 +18,28 @@
                     <input class="form-control" id="code" name="StudentUploadCode" value="@Model.StudentUploadCode" maxlength="64" autocomplete="off" />
                     <div class="form-text">Якщо заповнено — студент має ввести цей код, щоб відправити роботу. Залиште порожнім, щоб не вимагати код.</div>
                 </div>
+                <h5 class="mt-4">Тема за замовчуванням</h5>
+                <p class="small text-body-secondary">Діє для всіх, хто ще не обрав свою тему через <i class="bi bi-palette"></i> у верхньому меню.</p>
+                <div class="row g-3 mb-3">
+                    <div class="col-sm-6">
+                        <label class="form-label" for="mode">Режим</label>
+                        <select class="form-select" id="mode" name="DefaultMode">
+                            @foreach (var m in Themes.Modes)
+                            {
+                                <option value="@m.Key" selected="@(m.Key == Model.DefaultMode)">@m.Name</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label" for="accent">Колір</label>
+                        <select class="form-select" id="accent" name="DefaultAccent">
+                            @foreach (var a in Themes.Accents)
+                            {
+                                <option value="@a.Key" selected="@(a.Key == Model.DefaultAccent)">@a.Name</option>
+                            }
+                        </select>
+                    </div>
+                </div>
                 <button class="btn btn-primary"><i class="bi bi-save"></i> Зберегти</button>
             </form>
         </div>

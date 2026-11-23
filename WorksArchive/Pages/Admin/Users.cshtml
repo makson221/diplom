@@ -10,14 +10,14 @@
         <div class="card">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead class="table-light">
+                    <thead class="table-head">
                         <tr><th>ПІБ</th><th>Логін</th><th>Роль</th><th>Статус</th><th class="text-end">Дії</th></tr>
                     </thead>
                     <tbody>
                     @foreach (var u in Model.Users)
                     {
                         var isMe = u.Id == Model.CurrentUserId;
-                        <tr class="@(u.IsActive ? "" : "table-secondary")">
+                        <tr class="@(u.IsActive ? "" : "user-blocked")">
                             <td>@u.FullName @if (isMe) { <span class="badge text-bg-secondary">це ви</span> }</td>
                             <td><code>@u.Login</code></td>
                             <td>
@@ -43,7 +43,7 @@
                             </td>
                         </tr>
                         <tr class="collapse" id="edit-@u.Id">
-                            <td colspan="5" class="bg-light">
+                            <td colspan="5" class="bg-body-tertiary">
                                 <form method="post" asp-page-handler="Update" asp-route-id="@u.Id" class="row g-2 align-items-end">
                                     <div class="col-md-4">
                                         <label class="form-label small mb-1">ПІБ</label>

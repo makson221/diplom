@@ -1,8 +1,71 @@
-body { background: #f4f6fb; min-height: 100vh; display: flex; flex-direction: column; }
+/* ---------- Базові кольори сторінки (світла / темна тема) ---------- */
+:root, [data-bs-theme="light"] { --app-bg: #f4f6fb; --app-card-shadow: 0 1px 3px rgba(0,0,0,.08); }
+[data-bs-theme="dark"] { --app-bg: #14171c; --app-card-shadow: 0 1px 3px rgba(0,0,0,.5); }
+
+body { background: var(--app-bg); min-height: 100vh; display: flex; flex-direction: column; }
 main { flex: 1; }
-.card { border: 0; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.card { border: 0; box-shadow: var(--app-card-shadow); }
 .stat-card .display-6 { font-weight: 600; }
 .hero-card { transition: transform .15s; }
 .hero-card:hover { transform: translateY(-3px); }
 .table td, .table th { vertical-align: middle; }
+.table-head th { background: var(--bs-tertiary-bg); }
+.user-blocked td { opacity: .55; }
 .text-truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- Акцентний колір: змінні --accent* задаються в _Layout для кожної схеми ---------- */
+html[data-accent] {
+    --bs-primary: var(--accent);
+    --bs-primary-rgb: var(--accent-rgb);
+    --bs-link-color: var(--accent);
+    --bs-link-color-rgb: var(--accent-rgb);
+    --bs-link-hover-color: var(--accent-hover);
+    --bs-focus-ring-color: rgba(var(--accent-rgb), .25);
+    --accent-text: var(--accent);
+}
+html[data-accent][data-bs-theme="dark"] {
+    /* у темному режимі текст акцентного кольору робимо світлішим для читабельності */
+    --accent-text: color-mix(in srgb, var(--accent) 60%, #fff);
+    --bs-link-color: var(--accent-text);
+    --bs-link-hover-color: color-mix(in srgb, var(--accent) 40%, #fff);
+}
+.text-primary { color: var(--accent-text) !important; }
+
+.btn-primary {
+    --bs-btn-bg: var(--accent); --bs-btn-border-color: var(--accent);
+    --bs-btn-hover-bg: var(--accent-hover); --bs-btn-hover-border-color: var(--accent-hover);
+    --bs-btn-active-bg: var(--accent-hover); --bs-btn-active-border-color: var(--accent-hover);
+    --bs-btn-disabled-bg: var(--accent); --bs-btn-disabled-border-color: var(--accent);
+    --bs-btn-focus-shadow-rgb: var(--accent-rgb);
+}
+.btn-outline-primary {
+    --bs-btn-color: var(--accent-text); --bs-btn-border-color: var(--accent-text);
+    --bs-btn-hover-bg: var(--accent); --bs-btn-hover-border-color: var(--accent);
+    --bs-btn-active-bg: var(--accent); --bs-btn-active-border-color: var(--accent);
+    --bs-btn-disabled-color: var(--accent-text); --bs-btn-disabled-border-color: var(--accent-text);
+    --bs-btn-focus-shadow-rgb: var(--accent-rgb);
+}
+.pagination { --bs-pagination-color: var(--accent-text); --bs-pagination-active-bg: var(--accent); --bs-pagination-active-border-color: var(--accent); --bs-pagination-focus-box-shadow: 0 0 0 .25rem rgba(var(--accent-rgb), .25); }
+.dropdown-menu { --bs-dropdown-link-active-bg: var(--accent); }
+.form-check-input:checked { background-color: var(--accent); border-color: var(--accent); }
+.form-control:focus, .form-select:focus, .form-check-input:focus {
+    border-color: rgba(var(--accent-rgb), .6);
+    box-shadow: 0 0 0 .25rem rgba(var(--accent-rgb), .25);
+}
+
+/* ---------- Вибір теми ---------- */
+.theme-menu { min-width: 290px; }
+.swatch {
+    width: 30px; height: 30px; border-radius: 50%; padding: 0; cursor: pointer;
+    background: var(--sw); border: 2px solid var(--bs-body-bg);
+    box-shadow: 0 0 0 1px var(--bs-border-color);
+    transition: transform .1s;
+}
+.swatch:hover { transform: scale(1.12); }
+.swatch.active { box-shadow: 0 0 0 2px var(--bs-body-bg), 0 0 0 4px var(--sw); }
+.mode-btn {
+    --bs-btn-color: var(--bs-body-color); --bs-btn-border-color: var(--bs-border-color);
+    --bs-btn-hover-bg: var(--bs-tertiary-bg); --bs-btn-hover-color: var(--bs-body-color); --bs-btn-hover-border-color: var(--bs-border-color);
+    --bs-btn-active-bg: var(--accent); --bs-btn-active-border-color: var(--accent); --bs-btn-active-color: #fff;
+    white-space: nowrap;
+}

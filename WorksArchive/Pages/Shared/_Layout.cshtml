@@ -1,14 +1,42 @@
+@inject SettingsService Settings
 @{
+    var (defAccent, defMode) = await Settings.DefaultThemeAsync();
     var isAdmin = User.IsInRole(nameof(UserRole.Admin));
     var isTeacher = isAdmin || User.IsInRole(nameof(UserRole.Teacher));
     var path = Context.Request.Path.Value ?? "";
     string Active(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
 }
 <!DOCTYPE html>
-<html lang="uk">
+<html lang="uk" data-accent="@defAccent.Key" data-bs-theme="@(defMode == "dark" ? "dark" : "light")"
+      data-default-accent="@defAccent.Key" data-default-mode="@defMode">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+        // Застосовуємо тему до відмальовування сторінки (без "блимання").
+        (function () {
+            var d = document.documentElement, media = matchMedia('(prefers-color-scheme: dark)');
+            function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+            var mode = get('wa-mode') || d.dataset.defaultMode, accent = get('wa-accent') || d.dataset.defaultAccent;
+            window.waTheme = {
+                get mode() { return mode; }, get accent() { return accent; },
+                apply: function (m, a) {
+                    if (m) mode = m; if (a) accent = a;
+                    var dark = mode === 'dark' || (mode === 'auto' && media.matches);
+                    d.setAttribute('data-bs-theme', dark ? 'dark' : 'light');
+                    d.setAttribute('data-accent', accent);
+                }
+            };
+            waTheme.apply();
+            media.addEventListener('change', function () { if (mode === 'auto') waTheme.apply(); });
+        })();
+    </script>
+    <style>
+        @foreach (var a in Themes.Accents)
+        {
+            @:html[data-accent="@a.Key"] { --accent: @a.Color; --accent-rgb: @a.Rgb; --accent-hover: @a.Hover; }
+        }
+    </style>
     <title>@ViewData["Title"] — Архів робіт</title>
     <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
@@ -42,6 +70,32 @@
                 }
             </ul>
             <ul class="navbar-nav">
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" title="Тема оформлення">
+                        <i class="bi bi-palette"></i> <span class="d-lg-none">Тема</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end p-3 theme-menu">
+                        <div class="small text-body-secondary mb-2">Режим</div>
+                        <div class="btn-group w-100 mb-3" role="group">
+                            @foreach (var m in Themes.Modes)
+                            {
+                                <button type="button" class="btn btn-sm btn-outline-secondary mode-btn" data-mode="@m.Key" title="@m.Name">
+                                    <i class="bi @m.Icon"></i> @m.ShortName
+                                </button>
+                            }
+                        </div>
+                        <div class="small text-body-secondary mb-2">Колір</div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var a in Themes.Accents)
+                            {
+                                <button type="button" class="swatch" data-accent="@a.Key" style="--sw:@a.Color" title="@a.Name" aria-label="@a.Name"></button>
+                            }
+                        </div>
+                        <button type="button" class="btn btn-link btn-sm p-0 mt-3 text-decoration-none" id="themeReset">
+                            <i class="bi bi-arrow-counterclockwise"></i> Стандартна тема
+                        </button>
+                    </div>
+                </li>
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <li class="nav-item dropdown">
@@ -86,6 +140,28 @@
 </footer>
 
 <script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Вибір теми: зберігається в браузері (localStorage) кожного користувача.
+    (function () {
+        function set(k, v) { try { v === null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) { } }
+        function mark() {
+            document.querySelectorAll('.mode-btn').forEach(function (b) { b.classList.toggle('active', b.dataset.mode === waTheme.mode); });
+            document.querySelectorAll('.swatch').forEach(function (b) { b.classList.toggle('active', b.dataset.accent === waTheme.accent); });
+        }
+        document.querySelectorAll('.mode-btn').forEach(function (b) {
+            b.addEventListener('click', function () { set('wa-mode', b.dataset.mode); waTheme.apply(b.dataset.mode); mark(); });
+        });
+        document.querySelectorAll('.swatch').forEach(function (b) {
+            b.addEventListener('click', function () { set('wa-accent', b.dataset.accent); waTheme.apply(null, b.dataset.accent); mark(); });
+        });
+        document.getElementById('themeReset').addEventListener('click', function () {
+            var d = document.documentElement.dataset;
+            set('wa-mode', null); set('wa-accent', null);
+            waTheme.apply(d.defaultMode, d.defaultAccent); mark();
+        });
+        mark();
+    })();
+</script>
 @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

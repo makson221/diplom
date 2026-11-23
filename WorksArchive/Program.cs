@@ -40,6 +40,7 @@ else
 }
 
 builder.Services.AddScoped<WorkService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<SettingsService>();
 
 builder.Services.AddDataProtection()
