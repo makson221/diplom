@@ -1,0 +1,91 @@
+@{
+    var isAdmin = User.IsInRole(nameof(UserRole.Admin));
+    var isTeacher = isAdmin || User.IsInRole(nameof(UserRole.Teacher));
+    var path = Context.Request.Path.Value ?? "";
+    string Active(string prefix) => path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+}
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] — Архів робіт</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href="/"><i class="bi bi-archive"></i> Архів робіт</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link @Active("/Upload")" href="/Upload"><i class="bi bi-cloud-upload"></i> Здати роботу</a></li>
+                @if (isTeacher)
+                {
+                    <li class="nav-item"><a class="nav-link @Active("/Works")" href="/Works"><i class="bi bi-folder2-open"></i> Роботи</a></li>
+                }
+                @if (isAdmin)
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle @Active("/Admin")" href="#" data-bs-toggle="dropdown"><i class="bi bi-gear"></i> Адмін-панель</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/Admin"><i class="bi bi-speedometer2"></i> Огляд</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Users"><i class="bi bi-people"></i> Користувачі</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Groups"><i class="bi bi-collection"></i> Групи</a></li>
+                            <li><a class="dropdown-item" href="/Admin/Settings"><i class="bi bi-sliders"></i> Налаштування</a></li>
+                        </ul>
+                    </li>
+                }
+            </ul>
+            <ul class="navbar-nav">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown"><i class="bi bi-person-circle"></i> @User.Identity.Name</a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/Account/ChangePassword"><i class="bi bi-key"></i> Змінити пароль</a></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li>
+                                <form method="post" action="/Account/Logout" class="px-3">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-link p-0 text-danger text-decoration-none"><i class="bi bi-box-arrow-right"></i> Вийти</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </li>
+                }
+                else
+                {
+                    <li class="nav-item"><a class="nav-link" href="/Account/Login"><i class="bi bi-box-arrow-in-right"></i> Вхід для викладачів</a></li>
+                }
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+    @if (TempData["Success"] is string ok)
+    {
+        <div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle"></i> @ok
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @if (TempData["Error"] is string err)
+    {
+        <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle"></i> @err
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+    }
+    @RenderBody()
+</main>
+
+<footer class="text-center text-muted small py-3 border-top">
+    Архів курсових і дипломних робіт · @DateTime.Now.Year
+</footer>
+
+<script src="~/lib/bootstrap/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

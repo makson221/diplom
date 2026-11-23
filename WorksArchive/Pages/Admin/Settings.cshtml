@@ -1,0 +1,35 @@
+@page
+@model WorksArchive.Pages.Admin.SettingsModel
+@{
+    ViewData["Title"] = "Налаштування";
+}
+<h3 class="mb-4"><i class="bi bi-sliders text-primary"></i> Налаштування</h3>
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card p-4">
+            <form method="post">
+                <h5>Прийом робіт від студентів</h5>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="allow" name="AllowStudentUpload" value="true" checked="@Model.AllowStudentUpload" />
+                    <label class="form-check-label" for="allow">Студенти можуть здавати роботи через сторінку «Здати роботу»</label>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="code">Код доступу для студентів</label>
+                    <input class="form-control" id="code" name="StudentUploadCode" value="@Model.StudentUploadCode" maxlength="64" autocomplete="off" />
+                    <div class="form-text">Якщо заповнено — студент має ввести цей код, щоб відправити роботу. Залиште порожнім, щоб не вимагати код.</div>
+                </div>
+                <button class="btn btn-primary"><i class="bi bi-save"></i> Зберегти</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card p-4">
+            <h5>Сховище</h5>
+            <dl class="row mb-0 small">
+                <dt class="col-5">База даних</dt><dd class="col-7">@Model.DbProvider</dd>
+                <dt class="col-5">Файли</dt><dd class="col-7">@Model.StorageProvider</dd>
+                <dt class="col-5">Макс. розмір файлу</dt><dd class="col-7">@Model.MaxMb МБ</dd>
+            </dl>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,29 @@
+@page
+@{
+    ViewData["Title"] = "Головна";
+    var isTeacher = User.IsInRole(nameof(UserRole.Teacher)) || User.IsInRole(nameof(UserRole.Admin));
+}
+<div class="text-center mb-5 mt-3">
+    <h1 class="fw-bold"><i class="bi bi-archive text-primary"></i> Архів курсових і дипломних робіт</h1>
+    <p class="lead text-muted">Роботи зберігаються в хмарі. Переглядати і завантажувати їх можуть лише викладачі.</p>
+</div>
+<div class="row g-4 justify-content-center">
+    <div class="col-md-5">
+        <a href="/Upload" class="text-decoration-none">
+            <div class="card hero-card h-100 p-4 text-center">
+                <i class="bi bi-cloud-arrow-up display-4 text-primary"></i>
+                <h4 class="mt-3 text-dark">Я студент</h4>
+                <p class="text-muted mb-0">Здати курсову або дипломну роботу</p>
+            </div>
+        </a>
+    </div>
+    <div class="col-md-5">
+        <a href="@(isTeacher ? "/Works" : "/Account/Login")" class="text-decoration-none">
+            <div class="card hero-card h-100 p-4 text-center">
+                <i class="bi bi-person-workspace display-4 text-success"></i>
+                <h4 class="mt-3 text-dark">Я викладач</h4>
+                <p class="text-muted mb-0">Переглянути та завантажити роботи за групою і роком</p>
+            </div>
+        </a>
+    </div>
+</div>

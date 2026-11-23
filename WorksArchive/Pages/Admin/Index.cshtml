@@ -1,0 +1,72 @@
+@page
+@model WorksArchive.Pages.Admin.IndexModel
+@{
+    ViewData["Title"] = "Адмін-панель";
+}
+<h3 class="mb-4"><i class="bi bi-speedometer2 text-primary"></i> Адмін-панель</h3>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100">
+        <div class="text-muted small">Усього робіт</div><div class="display-6">@Model.TotalWorks</div>
+        <div class="small text-muted">@WorkService.FormatSize(Model.TotalSize)</div></div></div>
+    <div class="col-6 col-lg-3"><div class="card stat-card p-3 h-100">
+        <div class="text-muted small">Курсових / дипломних</div><div class="display-6">@Model.Courseworks / @Model.Diplomas</div></div></div>
+    <div class="col-6 col-lg-3"><a href="/Admin/Groups" class="text-decoration-none"><div class="card stat-card p-3 h-100">
+        <div class="text-muted small">Груп</div><div class="display-6 text-dark">@Model.GroupCount</div></div></a></div>
+    <div class="col-6 col-lg-3"><a href="/Admin/Users" class="text-decoration-none"><div class="card stat-card p-3 h-100">
+        <div class="text-muted small">Користувачів</div><div class="display-6 text-dark">@Model.UserCount</div></div></a></div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card p-3 h-100">
+            <h5><i class="bi bi-clock-history"></i> Останні надходження</h5>
+            @if (Model.Recent.Count == 0)
+            {
+                <p class="text-muted mb-0">Поки що немає робіт.</p>
+            }
+            else
+            {
+                <table class="table table-sm mb-0">
+                    <tbody>
+                    @foreach (var w in Model.Recent)
+                    {
+                        <tr>
+                            <td>@w.StudentName<div class="small text-muted text-truncate" style="max-width:300px">@w.Title</div></td>
+                            <td>@w.Group.Name</td>
+                            <td>@(w.Type == WorkType.Diploma ? "Диплом" : "Курсова")</td>
+                            <td class="small text-muted text-nowrap">@w.UploadedAt.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+            <a href="/Works" class="btn btn-sm btn-outline-primary mt-3 align-self-start">Усі роботи →</a>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card p-3 h-100">
+            <h5><i class="bi bi-bar-chart"></i> Роботи за групами і роками</h5>
+            @if (Model.ByGroupYear.Count == 0)
+            {
+                <p class="text-muted mb-0">Немає даних.</p>
+            }
+            else
+            {
+                <table class="table table-sm mb-0">
+                    <thead><tr><th>Група</th><th>Рік</th><th class="text-end">Робіт</th></tr></thead>
+                    <tbody>
+                    @foreach (var r in Model.ByGroupYear)
+                    {
+                        <tr>
+                            <td><a href="/Works?GroupId=@r.GroupId&Year=@r.Year">@r.Group</a></td>
+                            <td>@r.Year</td>
+                            <td class="text-end">@r.Count</td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+</div>

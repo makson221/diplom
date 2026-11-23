@@ -1,0 +1,27 @@
+@page
+@model WorksArchive.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Вхід";
+}
+<div class="row justify-content-center">
+    <div class="col-md-5 col-lg-4">
+        <div class="card p-4 mt-4">
+            <h3 class="text-center mb-4"><i class="bi bi-shield-lock text-primary"></i> Вхід для викладачів</h3>
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="alert alert-danger py-2 small"></div>
+                <input type="hidden" asp-for="ReturnUrl" />
+                <div class="mb-3">
+                    <label asp-for="LoginName" class="form-label"></label>
+                    <input asp-for="LoginName" class="form-control" autofocus autocomplete="username" />
+                    <span asp-validation-for="LoginName" class="text-danger small"></span>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="Password" class="form-label"></label>
+                    <input asp-for="Password" class="form-control" autocomplete="current-password" />
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
+                <button class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right"></i> Увійти</button>
+            </form>
+        </div>
+    </div>
+</div>
